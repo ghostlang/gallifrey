@@ -57,20 +57,24 @@ var _ = Describe("An interval", func() {
 		)
 
 		DescribeTable("i1.Overlaps(i2)",
-			func(sdiff, ediff time.Duration, expected bool) {
-				Ω(interval.Overlaps(NewInterval(start.Add(sdiff), end.Add(ediff)))).Should(Equal(expected))
+			func(sdiff, ediff time.Duration, nduration int, expected bool) {
+				d := time.Duration(nduration) * duration
+				Ω(interval.Overlaps(NewInterval(
+					start.Add(sdiff+d),
+					end.Add(ediff+d),
+				))).Should(Equal(expected))
 			},
-			Entry("[   ](   )", duration, duration, false),
-			Entry("(   )[   ]", -duration, -duration, false),
-			Entry("[  ]  (  )", duration+time.Second, duration+time.Second, false),
-			Entry("(  )  [  ]", -(duration+time.Second), -(duration+time.Second), false),
-			Entry("(  [  ]  )", -time.Second, time.Second, true),
-			Entry("[  (  )  ]", time.Second, -time.Second, true),
-			Entry("[  (  ]  )", time.Second, time.Second, true),
-			Entry("(  [  )  ]", -time.Second, -time.Second, true),
-			Entry("[(    ]  )", notime, time.Second, true),
-			Entry("[(      ])", notime, notime, true),
-			Entry("[  (    ])", time.Second, notime, true),
+			Entry("[   ](   )", notime, notime, 1, true),
+			Entry("(   )[   ]", notime, notime, -1, true),
+			Entry("[  ]  (  )", time.Second, time.Second, 1, false),
+			Entry("(  )  [  ]", -time.Second, -time.Second, -1, false),
+			Entry("(  [  ]  )", -time.Second, time.Second, 0, true),
+			Entry("[  (  )  ]", time.Second, -time.Second, 0, true),
+			Entry("[  (  ]  )", time.Second, time.Second, 0, true),
+			Entry("(  [  )  ]", -time.Second, -time.Second, 0, true),
+			Entry("[(    ]  )", notime, time.Second, 0, true),
+			Entry("[(      ])", notime, notime, 0, true),
+			Entry("[  (    ])", time.Second, notime, 0, true),
 		)
 	}
 
@@ -87,14 +91,6 @@ var _ = Describe("An interval", func() {
 			duration = -time.Minute
 		})
 		EvaluateInterval()
-	})
-
-	Context("with end equaling start", func() {
-		BeforeEach(func() {
-			duration = 0
-		})
-		EvaluateInterval()
-		EvaluateComparisons()
 	})
 
 })

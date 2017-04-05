@@ -1,8 +1,6 @@
 package gallifrey
 
-import (
-	"time"
-)
+import "time"
 
 type Interval interface {
 	Start() time.Time
@@ -74,5 +72,5 @@ func MinTime(a, b time.Time) time.Time {
 }
 
 func (i *interval) Overlaps(other Interval) bool {
-	return i.start.Before(other.End()) && i.end.After(other.Start())
+	return atOrBefore(i.start, other.End()) && atOrAfter(i.end, other.Start())
 }
