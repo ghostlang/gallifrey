@@ -1,7 +1,6 @@
 package gallifrey_test
 
 import (
-	"math"
 	"time"
 
 	. "github.com/ghostlang/gallifrey"
@@ -34,9 +33,6 @@ var _ = Describe("An interval", func() {
 		})
 		It("should return the end time given", func() {
 			Ω(interval.End()).Should(Equal(MaxTime(start, end)))
-		})
-		It("should accurately describe the interval's duration", func() {
-			Ω(interval.Duration()).Should(Equal(time.Duration(math.Abs(float64(duration)))))
 		})
 	}
 

@@ -5,7 +5,6 @@ import "time"
 type Interval interface {
 	Start() time.Time
 	End() time.Time
-	Duration() time.Duration
 
 	Contains(Interval) bool
 	Overlaps(Interval) bool
@@ -37,10 +36,6 @@ func (i *interval) Start() time.Time {
 
 func (i *interval) End() time.Time {
 	return i.end
-}
-
-func (i *interval) Duration() time.Duration {
-	return i.end.Sub(i.start)
 }
 
 func (i *interval) Contains(other Interval) bool {
