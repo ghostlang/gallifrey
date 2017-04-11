@@ -252,10 +252,3 @@ func total(d *node) int64 {
 	}
 	return d.max - d.min + 1 + total(d.left) + total(d.right)
 }
-
-func sortBoundaries(x, y int64) (int64, int64) {
-	if y > x {
-		return x, y
-	}
-	return y, x
-}
