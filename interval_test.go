@@ -18,7 +18,7 @@ var _ = Describe("An interval", func() {
 		start    time.Time
 		end      time.Time
 		duration time.Duration
-		interval Interval
+		interval TimeInterval
 	)
 
 	JustBeforeEach(func() {
