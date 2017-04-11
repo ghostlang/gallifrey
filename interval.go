@@ -2,6 +2,15 @@ package gallifrey
 
 import "time"
 
+// Interval represents an interval of integers.
+type Interval interface {
+	Start() int64
+	End() int64
+
+	Contains(Interval) bool
+	Overlaps(Interval) bool
+}
+
 // TimeInterval is an interval
 type TimeInterval interface {
 	Start() time.Time
@@ -11,65 +20,94 @@ type TimeInterval interface {
 	Overlaps(TimeInterval) bool
 }
 
-type interval struct {
+type timeInterval struct {
 	start time.Time
 	end   time.Time
 }
 
-func atOrBefore(a, b time.Time) bool {
-	return a == b || a.Before(b)
-}
-
-func atOrAfter(a, b time.Time) bool {
-	return a == b || a.After(b)
-}
-
-// NewInterval gives you a new interval
-func NewInterval(start, end time.Time) TimeInterval {
-	return &interval{
-		MinTime(start, end),
-		MaxTime(start, end),
+// NewTimeInterval returns a new time interval
+func NewTimeInterval(start, end time.Time) TimeInterval {
+	if end.Before(start) {
+		start, end = end, start
 	}
+	return &timeInterval{start, end}
 }
 
-func (i *interval) Start() time.Time {
+func (i *timeInterval) Start() time.Time {
 	return i.start
 }
 
-func (i *interval) End() time.Time {
+func (i *timeInterval) End() time.Time {
 	return i.end
 }
 
-func (i *interval) Contains(other TimeInterval) bool {
-	return !i.end.Before(other.End()) && !i.start.After(other.Start())
+func (i *timeInterval) interval() *interval {
+	return &interval{i.start.Unix(), i.end.Unix()}
 }
 
-func (i *interval) startsAtOrBefore(other TimeInterval) bool {
-	o := other.Start()
-	return i.start == o || i.start.Before(o)
+func (i *timeInterval) Contains(other TimeInterval) bool {
+	return i.interval().contains(other.Start().Unix(), other.End().Unix())
 }
 
-func (i *interval) endsAtOrAfter(other TimeInterval) bool {
-	o := other.End()
-	return i.end == o || i.end.After(o)
+func (i *timeInterval) Overlaps(other TimeInterval) bool {
+	return i.interval().overlaps(other.Start().Unix(), other.End().Unix())
 }
 
-// MaxTime returns whichever time is larger
-func MaxTime(a, b time.Time) time.Time {
-	if a.Before(b) {
+type interval struct {
+	start int64
+	end   int64
+}
+
+func atOrBefore(a, b int64) bool {
+	return a <= b
+}
+
+func atOrAfter(a, b int64) bool {
+	return a >= b
+}
+
+// NewInterval gives you a new interval
+func NewInterval(start, end int64) Interval {
+	return &interval{
+		min(start, end),
+		max(start, end),
+	}
+}
+
+func (i *interval) Start() int64 {
+	return i.start
+}
+
+func (i *interval) End() int64 {
+	return i.end
+}
+
+func (i *interval) contains(start, end int64) bool {
+	return start >= i.start && end <= i.end
+}
+
+func (i *interval) Contains(other Interval) bool {
+	return i.contains(other.Start(), other.End())
+}
+
+func max(a, b int64) int64 {
+	if a < b {
 		return b
 	}
 	return a
 }
 
-// MinTime returns whichever time is lesser
-func MinTime(a, b time.Time) time.Time {
-	if a.After(b) {
+func min(a, b int64) int64 {
+	if a > b {
 		return b
 	}
 	return a
 }
 
-func (i *interval) Overlaps(other TimeInterval) bool {
-	return atOrBefore(i.start, other.End()) && atOrAfter(i.end, other.Start())
+func (i *interval) overlaps(start, end int64) bool {
+	return i.start <= end && start <= i.end
+}
+
+func (i *interval) Overlaps(other Interval) bool {
+	return i.overlaps(other.Start(), other.End())
 }

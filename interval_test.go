@@ -12,6 +12,20 @@ import (
 
 const notime = time.Duration(0)
 
+func MinTime(a, b time.Time) time.Time {
+	if a.After(b) {
+		return b
+	}
+	return a
+}
+
+func MaxTime(a, b time.Time) time.Time {
+	if a.Before(b) {
+		return b
+	}
+	return a
+}
+
 var _ = Describe("An interval", func() {
 
 	var (
@@ -24,22 +38,22 @@ var _ = Describe("An interval", func() {
 	JustBeforeEach(func() {
 		start = time.Now()
 		end = start.Add(duration)
-		interval = NewInterval(start, end)
+		interval = NewTimeInterval(start, end)
 	})
 
 	EvaluateInterval := func() {
 		It("should return the start time given", func() {
-			Ω(interval.Start()).Should(Equal(MinTime(start, end)))
+			Ω(interval.Start()).Should(BeTemporally("==", MinTime(start, end)))
 		})
 		It("should return the end time given", func() {
-			Ω(interval.End()).Should(Equal(MaxTime(start, end)))
+			Ω(interval.End()).Should(BeTemporally("==", MaxTime(start, end)))
 		})
 	}
 
 	EvaluateComparisons := func() {
 		DescribeTable("i1.Contains(i2)",
 			func(sdiff, ediff time.Duration, expected bool) {
-				Ω(interval.Contains(NewInterval(start.Add(sdiff), end.Add(ediff)))).Should(Equal(expected))
+				Ω(interval.Contains(NewTimeInterval(start.Add(sdiff), end.Add(ediff)))).Should(Equal(expected))
 			},
 			Entry("[(      )]", notime, notime, true),
 			Entry("[(    ]  )", notime, time.Second, false),
@@ -55,7 +69,7 @@ var _ = Describe("An interval", func() {
 		DescribeTable("i1.Overlaps(i2)",
 			func(sdiff, ediff time.Duration, nduration int, expected bool) {
 				d := time.Duration(nduration) * duration
-				Ω(interval.Overlaps(NewInterval(
+				Ω(interval.Overlaps(NewTimeInterval(
 					start.Add(sdiff+d),
 					end.Add(ediff+d),
 				))).Should(Equal(expected))
