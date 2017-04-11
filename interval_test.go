@@ -1,7 +1,7 @@
 package gallifrey_test
 
 import (
-	"time"
+	"math/rand"
 
 	. "github.com/ghostlang/gallifrey"
 
@@ -10,87 +10,91 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const notime = time.Duration(0)
-
-func MinTime(a, b time.Time) time.Time {
-	if a.After(b) {
+func max(a, b int64) int64 {
+	if a < b {
 		return b
 	}
 	return a
 }
 
-func MaxTime(a, b time.Time) time.Time {
-	if a.Before(b) {
+func min(a, b int64) int64 {
+	if a > b {
 		return b
 	}
 	return a
 }
 
-var _ = Describe("An interval", func() {
+var _ = Describe("An integer interval", func() {
 
 	var (
-		start    time.Time
-		end      time.Time
-		duration time.Duration
-		interval TimeInterval
+		start    int64
+		end      int64
+		duration int64
+		interval Interval
 	)
 
 	JustBeforeEach(func() {
-		start = time.Now()
-		end = start.Add(duration)
-		interval = NewTimeInterval(start, end)
+		start = rand.Int63()
+		end = start + duration
+		interval = NewInterval(start, end)
 	})
 
 	EvaluateInterval := func() {
-		It("should return the start time given", func() {
-			Ω(interval.Start()).Should(BeTemporally("==", MinTime(start, end)))
+		It("should return the start boundary given", func() {
+			Ω(interval.Start()).Should(Equal(min(start, end)))
 		})
 		It("should return the end time given", func() {
-			Ω(interval.End()).Should(BeTemporally("==", MaxTime(start, end)))
+			Ω(interval.End()).Should(Equal(max(start, end)))
 		})
 	}
 
+	const (
+		zero   int64 = 0
+		one    int64 = 1
+		negone int64 = -1
+	)
+
 	EvaluateComparisons := func() {
 		DescribeTable("i1.Contains(i2)",
-			func(sdiff, ediff time.Duration, expected bool) {
-				Ω(interval.Contains(NewTimeInterval(start.Add(sdiff), end.Add(ediff)))).Should(Equal(expected))
+			func(sdiff, ediff int64, expected bool) {
+				Ω(interval.Contains(NewInterval(start+sdiff, end+ediff))).Should(Equal(expected))
 			},
-			Entry("[(      )]", notime, notime, true),
-			Entry("[(    ]  )", notime, time.Second, false),
-			Entry("[(    )  ]", notime, -time.Second, true),
-			Entry("[  (    )]", time.Second, notime, true),
-			Entry("[  (  ]  )", time.Second, time.Second, false),
-			Entry("[  (  )  ]", time.Second, -time.Second, true),
-			Entry("(  [    )]", -time.Second, notime, false),
-			Entry("(  [  ]  )", -time.Second, time.Second, false),
-			Entry("(  [  )  ]", -time.Second, -time.Second, false),
+			Entry("[(      )]", zero, zero, true),
+			Entry("[(    ]  )", zero, one, false),
+			Entry("[(    )  ]", zero, negone, true),
+			Entry("[  (    )]", one, zero, true),
+			Entry("[  (  ]  )", one, one, false),
+			Entry("[  (  )  ]", one, negone, true),
+			Entry("(  [    )]", negone, zero, false),
+			Entry("(  [  ]  )", negone, one, false),
+			Entry("(  [  )  ]", negone, negone, false),
 		)
 
 		DescribeTable("i1.Overlaps(i2)",
-			func(sdiff, ediff time.Duration, nduration int, expected bool) {
-				d := time.Duration(nduration) * duration
-				Ω(interval.Overlaps(NewTimeInterval(
-					start.Add(sdiff+d),
-					end.Add(ediff+d),
+			func(sdiff, ediff int64, nduration int64, expected bool) {
+				d := nduration * duration
+				Ω(interval.Overlaps(NewInterval(
+					start+sdiff+d,
+					end+ediff+d,
 				))).Should(Equal(expected))
 			},
-			Entry("[   ](   )", notime, notime, 1, true),
-			Entry("(   )[   ]", notime, notime, -1, true),
-			Entry("[  ]  (  )", time.Second, time.Second, 1, false),
-			Entry("(  )  [  ]", -time.Second, -time.Second, -1, false),
-			Entry("(  [  ]  )", -time.Second, time.Second, 0, true),
-			Entry("[  (  )  ]", time.Second, -time.Second, 0, true),
-			Entry("[  (  ]  )", time.Second, time.Second, 0, true),
-			Entry("(  [  )  ]", -time.Second, -time.Second, 0, true),
-			Entry("[(    ]  )", notime, time.Second, 0, true),
-			Entry("[(      ])", notime, notime, 0, true),
-			Entry("[  (    ])", time.Second, notime, 0, true),
+			Entry("[   ](   )", zero, zero, one, true),
+			Entry("(   )[   ]", zero, zero, negone, true),
+			Entry("[  ]  (  )", one, one, one, false),
+			Entry("(  )  [  ]", negone, negone, negone, false),
+			Entry("(  [  ]  )", negone, one, zero, true),
+			Entry("[  (  )  ]", one, negone, zero, true),
+			Entry("[  (  ]  )", one, one, zero, true),
+			Entry("(  [  )  ]", negone, negone, zero, true),
+			Entry("[(    ]  )", zero, one, zero, true),
+			Entry("[(      ])", zero, zero, zero, true),
+			Entry("[  (    ])", one, zero, zero, true),
 		)
 	}
 
 	Context("with start preceding end", func() {
 		BeforeEach(func() {
-			duration = time.Minute
+			duration = 60
 		})
 		EvaluateInterval()
 		EvaluateComparisons()
@@ -98,7 +102,7 @@ var _ = Describe("An interval", func() {
 
 	Context("with end preceding start", func() {
 		BeforeEach(func() {
-			duration = -time.Minute
+			duration = -60
 		})
 		EvaluateInterval()
 	})
