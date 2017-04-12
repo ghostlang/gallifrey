@@ -24,4 +24,12 @@ var _ = Describe("Tree", func() {
 		Ω(t.Contains(NewInterval(9, 19))).Should(BeTrue())
 	})
 
+	It("should perform simple intersection", func() {
+		t.Insert(NewInterval(10, 20))
+		Ω(t.Intersection(NewInterval(10, 20))).Should(BeNumerically("==", 11))
+		Ω(t.Intersection(NewInterval(20, 10))).Should(BeNumerically("==", 11))
+		Ω(t.Intersection(NewInterval(9, 9))).Should(BeNumerically("==", 0))
+		Ω(t.Intersection(NewInterval(9, 10))).Should(BeNumerically("==", 1))
+	})
+
 })

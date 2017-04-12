@@ -3,7 +3,7 @@ package gallifrey
 // IntervalTree is a tree of intervals
 type IntervalTree interface {
 	Insert(...Interval)
-	// Intersection(Interval) int64
+	Intersection(Interval) int64
 	Contains(Interval) bool
 }
 
@@ -21,7 +21,7 @@ func NewIntervalTree() IntervalTree {
 // Insert adds a new range of integers to the tree.
 func (d *intervalTree) Insert(intervals ...Interval) {
 	for _, i := range intervals {
-		d.root = insert(i.Start(), i.End(), d.root)
+		d.root = insert(i, d.root)
 	}
 }
 
@@ -56,84 +56,84 @@ func (d *intervalTree) Contains(i Interval) bool {
 }
 
 type node struct {
-	min   int64
-	max   int64
+	i     Interval
 	left  *node
 	right *node
 }
 
-func splitMax(min, max int64, left, right *node) (int64, int64, *node) {
+func splitMax(interval Interval, left, right *node) (Interval, *node) {
 	if right == nil {
-		return min, max, left
+		return interval, left
 	}
-	u, v, rprime := splitMax(right.min, right.max, right.left, right.right)
-	newd := &node{min, max, left, rprime}
-	return u, v, newd
+	subinterval, rprime := splitMax(right.i, right.left, right.right)
+	newd := &node{interval, left, rprime}
+	return subinterval, newd
 }
 
-func splitMin(min, max int64, left, right *node) (int64, int64, *node) {
+func splitMin(interval Interval, left, right *node) (Interval, *node) {
 	if left == nil {
-		return min, max, right
+		return interval, right
 	}
-	u, v, lprime := splitMin(left.min, left.max, left.left, left.right)
-	newd := &node{min, max, lprime, right}
-	return u, v, newd
+	subinterval, lprime := splitMin(left.i, left.left, left.right)
+	newd := &node{interval, lprime, right}
+	return subinterval, newd
 }
 
-func joinLeft(min, max int64, left, right *node) *node {
+func joinLeft(interval Interval, left, right *node) *node {
 	if left != nil {
-		xprime, yprime, lprime := splitMax(left.min, left.max, left.left, left.right)
-		if yprime+1 == min {
-			return &node{xprime, max, lprime, right}
+		subinterval, lprime := splitMax(left.i, left.left, left.right)
+		if subinterval.Adjacent(interval, 1) {
+			// TODO: Reuse intervals for performance
+			return &node{subinterval.Extend(interval), lprime, right}
 		}
 	}
-	return &node{min, max, left, right}
+	return &node{interval, left, right}
 }
 
-func joinRight(min, max int64, left, right *node) *node {
+func joinRight(interval Interval, left, right *node) *node {
 	if right != nil {
-		xprime, yprime, rprime := splitMin(right.min, right.max, right.left, right.right)
-		if max+1 == xprime {
-			return &node{min, yprime, left, rprime}
+		subinterval, rprime := splitMin(right.i, right.left, right.right)
+		if subinterval.Adjacent(interval, 1) {
+			return &node{interval.Extend(subinterval), left, rprime}
 		}
 	}
-	return &node{min, max, left, right}
+	return &node{interval, left, right}
 }
 
-func insert(x, y int64, d *node) *node {
+func insert(interval Interval, d *node) *node {
 	if d == nil {
-		return &node{x, y, nil, nil}
+		return &node{interval, nil, nil}
 	}
 	switch {
-	case x >= d.min && y <= d.max: // Contained within. Do nothing.
+	case d.i.Contains(interval): // Contained within. Do nothing.
 		return d
 
-	case y < d.min: // Does not overlap. Is less.
-		if y+1 == d.min {
-			return joinLeft(x, d.max, d.left, d.right)
+	case interval.LessThan(d.i): // Does not overlap. Is less.
+		if interval.Adjacent(d.i, 1) {
+			return joinLeft(NewInterval(interval.Start(), d.i.End()), d.left, d.right)
 		}
-		return &node{d.min, d.max, insert(x, y, d.left), d.right}
+		return &node{d.i, insert(interval, d.left), d.right}
 
-	case x > d.max: // Does not overlap. Is greater.
-		if x == d.max+1 {
-			return joinRight(d.min, y, d.left, d.right)
+	case interval.GreaterThan(d.i): // Does not overlap. Is greater.
+		if interval.Adjacent(d.i, 1) {
+			return joinRight(d.i.Extend(interval), d.left, d.right)
 		}
-		return &node{d.min, d.max, d.left, insert(x, y, d.right)}
+		return &node{d.i, d.left, insert(interval, d.right)}
 
-	case x < d.min && y <= d.max: // Overlaps on the left
-		return joinLeft(x, d.max, d.left, d.right)
+	case interval.Contains(d.i): // Overlaps on left and right
+		left := joinLeft(interval.Extend(d.i), d.left, d.right)
+		return joinRight(NewInterval(left.i.Start(), interval.End()), left.left, left.right)
 
-	case x >= d.min && y > d.max: // Overlaps on the right
-		return joinRight(d.min, y, d.left, d.right)
+	case interval.StartsBefore(d.i): // Overlaps on the left
+		return joinLeft(NewInterval(interval.Start(), d.i.End()), d.left, d.right)
 
-	case x < d.min && y > d.max: // Overlaps on left and right
-		left := joinLeft(x, d.max, d.left, d.right)
-		return joinRight(left.min, y, left.left, left.right)
+	case interval.EndsAfter(d.i): // Overlaps on the right
+		return joinRight(NewInterval(d.i.Start(), interval.End()), d.left, d.right)
 	}
 	return d
 }
 
-func intersection(l, r int64, d *node) int64 {
+func intersection(interval Interval, d *node) int64 {
 	if d == nil {
 		return 0
 	}
