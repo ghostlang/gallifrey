@@ -1,2 +1,1 @@
-# gallifrey
-Golang time range manipulation library
+Gallifrey, a calendar thing

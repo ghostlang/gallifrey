@@ -6,105 +6,72 @@ import (
 	. "github.com/ghostlang/gallifrey"
 
 	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 )
 
-func max(a, b int64) int64 {
-	if a < b {
-		return b
-	}
-	return a
-}
+var _ = Describe("Interval", func() {
 
-func min(a, b int64) int64 {
-	if a > b {
-		return b
-	}
-	return a
-}
-
-var _ = Describe("An integer interval", func() {
+	rand.Seed(GinkgoRandomSeed())
 
 	var (
-		start    int64
-		end      int64
-		duration int64
 		interval Interval
+		lower    int64
+		upper    int64
+		span     int64
 	)
 
-	JustBeforeEach(func() {
-		start = rand.Int63()
-		end = start + duration
-		interval = NewInterval(start, end)
+	BeforeEach(func() {
+		lower = int64(rand.Intn(1000))
+		span = int64(rand.Intn(100))
+		upper = lower + span
 	})
 
-	EvaluateInterval := func() {
-		It("should return the start boundary given", func() {
-			Ω(interval.Start()).Should(Equal(min(start, end)))
+	AssertIntervalConsistency := func() {
+		It("should return the given lower limit", func() {
+			Ω(interval.Lower()).Should(Equal(lower))
 		})
-		It("should return the end time given", func() {
-			Ω(interval.End()).Should(Equal(max(start, end)))
+		It("should return the given upper limit", func() {
+			Ω(interval.Upper()).Should(Equal(upper))
+		})
+		It("should return the correct span", func() {
+			Ω(interval.Span()).Should(Equal(span))
+		})
+		It("should return lower less than upper", func() {
+			Ω(interval.Lower()).Should(BeNumerically("<", interval.Upper()))
 		})
 	}
 
-	const (
-		zero   int64 = 0
-		one    int64 = 1
-		negone int64 = -1
-	)
+	Context("created from limits", func() {
 
-	EvaluateComparisons := func() {
-		DescribeTable("i1.Contains(i2)",
-			func(sdiff, ediff int64, expected bool) {
-				Ω(interval.Contains(NewInterval(start+sdiff, end+ediff))).Should(Equal(expected))
-			},
-			Entry("[(      )]", zero, zero, true),
-			Entry("[(    ]  )", zero, one, false),
-			Entry("[(    )  ]", zero, negone, true),
-			Entry("[  (    )]", one, zero, true),
-			Entry("[  (  ]  )", one, one, false),
-			Entry("[  (  )  ]", one, negone, true),
-			Entry("(  [    )]", negone, zero, false),
-			Entry("(  [  ]  )", negone, one, false),
-			Entry("(  [  )  ]", negone, negone, false),
-		)
-
-		DescribeTable("i1.Overlaps(i2)",
-			func(sdiff, ediff int64, nduration int64, expected bool) {
-				d := nduration * duration
-				Ω(interval.Overlaps(NewInterval(
-					start+sdiff+d,
-					end+ediff+d,
-				))).Should(Equal(expected))
-			},
-			Entry("[   ](   )", zero, zero, one, true),
-			Entry("(   )[   ]", zero, zero, negone, true),
-			Entry("[  ]  (  )", one, one, one, false),
-			Entry("(  )  [  ]", negone, negone, negone, false),
-			Entry("(  [  ]  )", negone, one, zero, true),
-			Entry("[  (  )  ]", one, negone, zero, true),
-			Entry("[  (  ]  )", one, one, zero, true),
-			Entry("(  [  )  ]", negone, negone, zero, true),
-			Entry("[(    ]  )", zero, one, zero, true),
-			Entry("[(      ])", zero, zero, zero, true),
-			Entry("[  (    ])", one, zero, zero, true),
-		)
-	}
-
-	Context("with start preceding end", func() {
-		BeforeEach(func() {
-			duration = 60
+		Context("with the first limit lower than the second", func() {
+			JustBeforeEach(func() {
+				interval = NewInterval(lower, upper)
+			})
+			AssertIntervalConsistency()
 		})
-		EvaluateInterval()
-		EvaluateComparisons()
+
+		Context("with the first limit higher than the second", func() {
+			JustBeforeEach(func() {
+				interval = NewInterval(upper, lower)
+			})
+			AssertIntervalConsistency()
+		})
 	})
 
-	Context("with end preceding start", func() {
-		BeforeEach(func() {
-			duration = -60
-		})
-		EvaluateInterval()
-	})
+	Context("created from a lower limit and a span", func() {
 
+		Context("with a positive span", func() {
+			JustBeforeEach(func() {
+				interval = NewIntervalOfSpan(lower, span)
+			})
+			AssertIntervalConsistency()
+		})
+
+		Context("with a negative span", func() {
+			JustBeforeEach(func() {
+				interval = NewIntervalOfSpan(upper, -span)
+			})
+			AssertIntervalConsistency()
+		})
+	})
 })
