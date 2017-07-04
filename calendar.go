@@ -1,58 +1,46 @@
 package gallifrey
 
-func sum(ns []int64) int64 {
-	var total int64
-	for _, n := range ns {
-		total += n
-	}
-	return total
-}
+import (
+	"github.com/ghostlang/gallifrey/circular"
+)
 
 type Calendar interface {
-	Slice(a, b int64) []Interval
+	Get(idx int64) Interval
 }
 
 func NewDeltaCalendar(lower int64, deltas ...int64) Calendar {
-	var sum int64
-	for _, i := range deltas {
-		sum += i
-	}
-	return &deltaCalendar{lower, deltas, sum}
-}
-
-func NewCalendarFromCalendar(from Calendar, slices ...int64) Calendar {
-	return &superCalendar{from, slices, sum(slices)}
+	return &deltaCalendar{lower, deltas}
 }
 
 type deltaCalendar struct {
 	lower  int64
 	deltas []int64
-	sum    int64
 }
 
-type superCalendar struct {
+func (c *deltaCalendar) Get(idx int64) Interval {
+	lower := c.lower
+	if idx > 0 {
+		lower += circular.Sum(c.deltas, 0, idx)
+	}
+	return NewInterval(lower, lower+circular.Get(c.deltas, idx))
+}
+
+func NewGroupingCalendar(from Calendar, slices ...int64) Calendar {
+	return &groupingCalendar{from, slices}
+}
+
+type groupingCalendar struct {
 	from   Calendar
 	slices []int64
-	sum    int64
 }
 
-func circularSum(vals []int64, idx int64) int64 {
-	s := sum(vals)
-	l := int64(len(vals))
-	return s*(idx/l) + sum(vals[:idx%l])
-}
-
-func (c *deltaCalendar) Slice(a, b int64) (result []Interval) {
-	l := int64(len(c.deltas))
-	last := circularSum(c.deltas, a)
-	for i := a; i < b; i++ {
-		next := last + c.deltas[i%l]
-		result = append(result, NewInterval(last, next))
-		last = next
+func (c *groupingCalendar) Get(idx int64) Interval {
+	var x int64
+	if idx > 0 {
+		x += circular.Sum(c.slices, 0, idx)
 	}
-	return
-}
-
-func (c *superCalendar) Slice(a, b int64) (result []Interval) {
-	return []Interval{}
+	lower := c.from.Get(x).Lower()
+	diff := circular.Get(c.slices, idx)
+	upper := c.from.Get(x + diff).Lower()
+	return NewInterval(lower, upper)
 }

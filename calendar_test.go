@@ -9,36 +9,22 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func sum(ns []int64) (total int64) {
-	for _, n := range ns {
-		total += n
-	}
-	return
-}
-
 func randIntn64(n int) int64 {
 	return int64(rand.Intn(n))
+}
+
+func randArray(minSize, maxSize, minVal, maxVal int) []int64 {
+	size := randIntn64(maxSize-minSize) + int64(minSize)
+	result := make([]int64, size)
+	for i := int64(0); i < size; i++ {
+		result[i] = randIntn64(maxVal-minVal) + int64(minVal)
+	}
+	return result
 }
 
 var _ = Describe("Calendar", func() {
 
 	var calendar Calendar
-
-	AssertInterval := func() {
-
-		It("returns the correct slice size", func() {
-			b := randIntn64(100)
-			slice := calendar.Slice(0, b)
-			Ω(slice).Should(HaveLen(int(b)))
-		})
-
-		It("starts with 0 when asked for the first interval", func() {
-			b := randIntn64(100)
-			slice := calendar.Slice(0, b)
-			Ω(slice).Should(HaveLen(int(b)))
-			Ω(slice[0].Lower()).Should(BeNumerically("==", 0))
-		})
-	}
 
 	Context("created from delta values", func() {
 
@@ -48,80 +34,65 @@ var _ = Describe("Calendar", func() {
 		)
 
 		JustBeforeEach(func() {
-			lower = randIntn64(1000)
+			lower = randIntn64(100)
+			deltas = randArray(3, 10, 1, 10)
 			calendar = NewDeltaCalendar(lower, deltas...)
 		})
 
-		AssertDeltas := func() {
-
-			It("maintains the correct deltas", func() {
-				l := len(deltas)
-				slice := calendar.Slice(0, randIntn64(100))
-				for i, interval := range slice {
-					Ω(interval.Span()).Should(Equal(deltas[i%l]))
-				}
-
-			})
-
-		}
-
-		Context("with a single delta value", func() {
-
-			BeforeEach(func() {
-				deltas = []int64{randIntn64(20)}
-			})
-
-			AssertInterval()
-			AssertDeltas()
-
+		It("can get the first item", func() {
+			interval := calendar.Get(0)
+			Ω(interval.Lower()).Should(Equal(lower))
+			Ω(interval.Upper()).Should(Equal(interval.Lower() + deltas[0]))
 		})
 
-		Context("with multiple delta values", func() {
+		It("can get the second item", func() {
+			interval := calendar.Get(1)
+			Ω(interval.Lower()).Should(Equal(lower + deltas[0]))
+			Ω(interval.Upper()).Should(Equal(interval.Lower() + deltas[1]))
+		})
 
-			BeforeEach(func() {
-				deltas = []int64{}
-				for i := 0; i < rand.Intn(12); i++ {
-					deltas = append(deltas, randIntn64(31))
-				}
-			})
-
-			AssertInterval()
-			AssertDeltas()
-
+		It("can get the third item", func() {
+			interval := calendar.Get(2)
+			Ω(interval.Lower()).Should(Equal(lower + deltas[0] + deltas[1]))
+			Ω(interval.Upper()).Should(Equal(interval.Lower() + deltas[2]))
 		})
 
 	})
 
-	/*
-		Context("created from another calendar", func() {
+	Context("created from another calendar", func() {
 
-			var (
-				days            = NewDeltaCalendar(0, 60*60*24)
-				from   Calendar = days
-				slices []int64
-			)
+		var (
+			lower          int64
+			deltas, slices []int64
+			from, calendar Calendar
+		)
 
-			JustBeforeEach(func() {
-				calendar = NewCalendarFromCalendar(from, slices...)
-			})
+		BeforeEach(func() {
+			lower = 0
+			deltas = []int64{2, 6, 1, 8, 3}
+			from = NewDeltaCalendar(lower, deltas...)
 
-			Context("with a single slice argument", func() {
-				BeforeEach(func() {
-					slices = []int64{randIntn64(31)}
-				})
-				AssertInterval()
-			})
-
-			Context("with multiple slice arguments", func() {
-				BeforeEach(func() {
-					slices = []int64{}
-					for i := 0; i < rand.Intn(12); i++ {
-						slices = append(slices, randIntn64(31))
-					}
-				})
-				AssertInterval()
-			})
+			slices = []int64{2, 6, 7, 6}
+			calendar = NewGroupingCalendar(from, slices...)
 		})
-	*/
 
+		It("can get the first item", func() {
+			interval := calendar.Get(0)
+			Ω(interval.Lower()).Should(BeNumerically("==", 0))
+			Ω(interval.Upper()).Should(BeNumerically("==", 8))
+		})
+
+		It("can get the second item", func() {
+			interval := calendar.Get(1)
+			Ω(interval.Lower()).Should(BeNumerically("==", 8))
+			Ω(interval.Upper()).Should(BeNumerically("==", 29))
+		})
+
+		It("can get the third item", func() {
+			interval := calendar.Get(2)
+			Ω(interval.Lower()).Should(BeNumerically("==", 29))
+			Ω(interval.Upper()).Should(BeNumerically("==", 60))
+		})
+
+	})
 })
