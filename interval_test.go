@@ -21,8 +21,8 @@ var _ = Describe("Interval", func() {
 	)
 
 	BeforeEach(func() {
-		lower = int64(rand.Intn(1000))
-		span = int64(rand.Intn(100))
+		lower = int64(rand.Intn(1000) + 1)
+		span = int64(rand.Intn(100) + 1)
 		upper = lower + span
 	})
 
