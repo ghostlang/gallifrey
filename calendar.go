@@ -4,6 +4,15 @@ import (
 	"github.com/ghostlang/gallifrey/circular"
 )
 
+var (
+	//ReferenceTime, _          = time.Parse("Sun Jan 1 00:00:00 GMT 1905")
+	Minutes    Calendar = NewDeltaCalendar(0, 60)
+	Hours               = NewGroupingCalendar(Minutes, 60)
+	Days                = NewGroupingCalendar(Hours, 24)
+	Weeks               = NewGroupingCalendar(Days, 7)
+	monthsBase          = NewGroupingCalendar(Days, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+)
+
 type Calendar interface {
 	Get(idx int64) Interval
 }
